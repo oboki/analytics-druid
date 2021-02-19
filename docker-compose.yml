@@ -1,0 +1,119 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+version: "2.2"
+services:
+  postgres:
+    container_name: postgres
+    image: harbor-dev.kabang.io/ext/postgres:9.6
+    volumes:
+      - /docker/druid/volumes/metadata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=FoolishPassword
+      - POSTGRES_USER=druid
+      - POSTGRES_DB=druid
+      - PGDATA=/var/lib/postgresql/data/druid
+
+  # Need 3.5 or later for container nodes
+  zookeeper:
+    container_name: zookeeper
+    image: harbor-dev.kabang.io/ext/zookeeper:3.6.2
+    environment:
+      - ZOO_MY_ID=1
+
+  coordinator:
+    image: harbor-dev.kabang.io/analytics/druid:0.20.0
+    container_name: coordinator
+    volumes:
+      - /docker/druid/volumes/storage:/opt/data
+      - /docker/druid/volumes/coordinator:/opt/druid/var
+    depends_on: 
+      - zookeeper
+      - postgres
+    ports:
+      - "8081:8081"
+    command:
+      - coordinator
+    env_file:
+      - environment
+
+  broker:
+    image: harbor-dev.kabang.io/analytics/druid:0.20.0
+    container_name: broker
+    volumes:
+      - /docker/druid/volumes/broker:/opt/druid/var
+    depends_on: 
+      - zookeeper
+      - postgres
+      - coordinator
+    ports:
+      - "8082:8082"
+    command:
+      - broker
+    env_file:
+      - environment
+
+  historical:
+    image: harbor-dev.kabang.io/analytics/druid:0.20.0
+    container_name: historical
+    volumes:
+      - /docker/druid/volumes/storage:/opt/data
+      - /docker/druid/volumes/historical:/opt/druid/var
+    depends_on: 
+      - zookeeper
+      - postgres
+      - coordinator
+    ports:
+      - "8083:8083"
+    command:
+      - historical
+    env_file:
+      - environment
+
+  middlemanager:
+    image: harbor-dev.kabang.io/analytics/druid:0.20.0
+    container_name: middlemanager
+    volumes:
+      - /docker/druid/volumes/storage:/opt/data
+      - /docker/druid/volumes/middle:/opt/druid/var
+    depends_on: 
+      - zookeeper
+      - postgres
+      - coordinator
+    ports:
+      - "8091:8091"
+    command:
+      - middleManager
+    env_file:
+      - environment
+
+  router:
+    image: harbor-dev.kabang.io/analytics/druid:0.20.0
+    container_name: router
+    volumes:
+      - /docker/druid/volumes/router:/opt/druid/var
+    depends_on:
+      - zookeeper
+      - postgres
+      - coordinator
+    ports:
+      - "8888:8888"
+    command:
+      - router
+    env_file:
+      - environment
